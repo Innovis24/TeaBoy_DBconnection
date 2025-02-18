@@ -41,7 +41,7 @@ $conn->close();
 
 // Function to handle GET requests
 function handleGet($conn) {
-    $sql = 'SELECT * FROM hourly_report ORDER BY ID ASC';
+    $sql = 'SELECT * FROM hourly_report ORDER BY BranchName ASC, ID ASC';
     $result = $conn->query($sql);
 
     $users = [];
@@ -67,8 +67,10 @@ function handlePost($conn) {
         $sales = $conn->real_escape_string($record['Sales']);
         $total_amount = $conn->real_escape_string($record['totalamount']);
         $cashin_hand = $conn->real_escape_string($record['cashinhand']);
+        $branchname = $conn->real_escape_string($record['BranchName']);
+        $managername =  $conn->real_escape_string($record['ManagerName']);
 
-    $checkRecord = "SELECT count(*) as count FROM hourly_report WHERE ID = $report_id";
+    $checkRecord = "SELECT count(*) as count FROM hourly_report WHERE ID = $report_id AND BranchName='$branchname'";
     $result = $conn->query($checkRecord);
             
     if ($result) {
@@ -78,7 +80,7 @@ function handlePost($conn) {
         if ($count > 0) {
 
             $update_sql = "UPDATE hourly_report SET totalamount = '$total_amount' ,cashinhand = '$cashin_hand' , Sales='$sales'
-            WHERE ID = $report_id";
+            WHERE ID = '$report_id' AND BranchName='$branchname'";
             if ($conn->query($update_sql) === TRUE) {
                 echo "Record updated successfully.";
             } else {
@@ -86,8 +88,9 @@ function handlePost($conn) {
             }
         } else {
             // Insert new record
-            $insert_sql = "INSERT INTO hourly_report (ID,Date,endtime,pettycash,amounttaken,totalamount,cashinhand,Sales) 
-        VALUES ('$report_id','$Date','$start_ID', '$petty_cash', '$amount_enter', '$total_amount', '$cashin_hand','$sales')";
+            $insert_sql = "INSERT INTO hourly_report (ID,Date,BranchName,ManagerName,endtime,pettycash,amounttaken,totalamount,cashinhand,Sales) 
+        VALUES ('$report_id','$Date','$branchname','$managername','$start_ID', '$petty_cash', '$amount_enter', '$total_amount', '$cashin_hand','$sales')";
+        
             if ($conn->query($insert_sql) === TRUE) {
                 echo "Record inserted successfully.";
             } else {
@@ -106,6 +109,7 @@ function handleDelete($conn) {
     $data = json_decode(file_get_contents('php://input'), true);
     $id = isset($data['ID']) ? $conn->real_escape_string($data['ID']) : null;
     $Date = isset($data['Date']) ? $conn->real_escape_string($data['Date']) : null;
+    $branchname =  isset($data['BranchName']) ? $conn->real_escape_string($data['BranchName']) : null;
 
     // Ensure the ID is provided
     if (!$id) {
@@ -114,7 +118,7 @@ function handleDelete($conn) {
     }
 
     // Step 1: Delete the specified record from the database
-    $deleteQuery = "DELETE FROM hourly_report WHERE ID = $id";
+    $deleteQuery = "DELETE FROM hourly_report WHERE ID = $id AND BranchName='$branchname'";
     if ($conn->query($deleteQuery)) {
         echo json_encode(['message' => "Record with ID $id deleted successfully"]);
     } else {
@@ -147,7 +151,11 @@ function handleDelete($conn) {
             $totalAmount = $previousAmountTaken + $currentPettyCash + $currentAmountTaken;
             $sales = abs($currentPettyCash + $currentAmountTaken - $previousPettyCash);
             $cumulativeAmount += $totalAmount;
-            $cashinhand += (int)$record['amounttaken'];;
+            // $cashinhand += (int)$record['amounttaken'];
+
+            if ($record["BranchName"] === $branchname) {
+                $cashinhand += (int)$record["amounttaken"];
+            }
 
             // Update the record with the new calculated values
             $record['cashinhand'] = $cashinhand;
@@ -159,7 +167,7 @@ function handleDelete($conn) {
                             SET cashinhand = '{$record['cashinhand']}', 
                                 sales = '{$record['sales']}', 
                                 totalamount = '{$record['totalamount']}' 
-                            WHERE ID = {$record['ID']}";
+                            WHERE ID = {$record['ID']} AND BranchName='$branchname'";
             if (!$conn->query($updateQuery)) {
                 echo json_encode(['error' => "Error updating record with ID {$record['ID']}: " . $conn->error]);
                 return;
@@ -189,9 +197,10 @@ function handlePut($conn) {
     $sales = $conn->real_escape_string($record['Sales']);
     $total_amount = $conn->real_escape_string($record['totalamount']);
     $cashin_hand = $conn->real_escape_string($record['cashinhand']);
+    $branchname = $conn->real_escape_string($record['BranchName']);
 
     // First, fetch the previous record to calculate the new values
-    $checkRecord = "SELECT * FROM hourly_report WHERE ID = $report_id";
+    $checkRecord = "SELECT * FROM hourly_report WHERE ID = $report_id AND BranchName='$branchname'";
     $result = $conn->query($checkRecord);
 
     if ($result) {
@@ -204,7 +213,7 @@ function handlePut($conn) {
                             cashinhand = '$cashin_hand', 
                             Sales = '$sales' , amounttaken = '$amount_enter' ,
                             pettycash = '$petty_cash'
-                            WHERE ID = $report_id";
+                            WHERE ID = $report_id AND BranchName='$branchname'";
 
             if ($conn->query($update_sql) === TRUE) {
                 echo json_encode(['message' => 'Record updated successfully']);

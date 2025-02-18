@@ -94,8 +94,10 @@ function handlePost($conn) {
         $Date = $conn->real_escape_string($data['Date']);
         $Itemname = $conn->real_escape_string($data['Itemname']);
         $Amount = $conn->real_escape_string($data['Amount']);
+        $branchname = $conn->real_escape_string($data['BranchName']);
+        $managername =  $conn->real_escape_string($data['ManagerName']);
 
-        $sql = "INSERT INTO daily_expenditure (Date, Itemname, Amount) VALUES ('$Date', '$Itemname', '$Amount')";
+        $sql = "INSERT INTO daily_expenditure (Date, BranchName,ManagerName,Itemname, Amount) VALUES ('$Date', '$branchname','$managername','$Itemname', '$Amount')";
 
         if ($conn->query($sql) === TRUE) {
             echo json_encode(['message' => 'Record inserted successfully']);

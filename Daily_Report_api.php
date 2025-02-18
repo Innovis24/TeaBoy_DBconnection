@@ -82,9 +82,9 @@ function handlePost($conn) {
         $ActualCollection = $conn->real_escape_string($record['ActualCollection']);
         $CashTaken = $conn->real_escape_string($record['CashTaken']);
         $TotalCashinTaken = $conn->real_escape_string($record['TotalCashinTaken']);
+        $BranchName = $conn->real_escape_string($record['BranchName']);
 
-
-        $checkRecord = "SELECT count(*) as count FROM daily_report WHERE Date = '$Date'";
+        $checkRecord = "SELECT count(*) as count FROM daily_report WHERE Date = '$Date' AND BranchName='$BranchName'";
         $result = $conn->query($checkRecord);
         
         if ($result) {
@@ -92,7 +92,7 @@ function handlePost($conn) {
             $count = (int)$row['count'];
             if ($count > 0) {
                 $update_sql = "UPDATE daily_report SET ActualCollection = '$ActualCollection' ,TotalCashinTaken = '$TotalCashinTaken' 
-                WHERE Date = '$Date'";
+                WHERE Date = '$Date' AND BranchName='$BranchName'";
                 if ($conn->query($update_sql) === TRUE) {
                     echo "Record updated successfully.";
 
@@ -101,7 +101,7 @@ function handlePost($conn) {
                 }
             } else {
                 // Insert new record
-                $insert_sql = "INSERT INTO daily_report (Date, Day,cashAmount, reportedTo, cashHolder, gPay, gPayHolder, PettyCash,Total,ActualCollection,CashTaken,TotalCashinTaken)  VALUES ('$Date','$Day', '$cashAmount', '$reportedTo', '$cashHolder', '$gPay', '$gPayHolder', '$PettyCash','$Total','$ActualCollection','$CashTaken',' $TotalCashinTaken')";
+                $insert_sql = "INSERT INTO daily_report (Date, Day,cashAmount, reportedTo, cashHolder, gPay, gPayHolder, PettyCash,Total,ActualCollection,CashTaken,TotalCashinTaken,BranchName)  VALUES ('$Date','$Day', '$cashAmount', '$reportedTo', '$cashHolder', '$gPay', '$gPayHolder', '$PettyCash','$Total','$ActualCollection','$CashTaken',' $TotalCashinTaken','$BranchName')";
                 if ($conn->query($insert_sql) === TRUE) {
                     echo "Record inserted successfully.";
                 } else {
@@ -120,14 +120,14 @@ function handlePost($conn) {
 function handleDelete($conn) {
         $data = json_decode(file_get_contents('php://input'), true);
         $Date = isset($data['Date']) ? $conn->real_escape_string($data['Date']) : null; // Expect date in 'YYYY-MM-DD' format
-    
+        $BranchName = isset($data['BranchName']) ? $conn->real_escape_string($data['BranchName']) : null;
         if (!$Date) {
             echo json_encode(['error' => 'Date is required for deletion and recalculation']);
             return;
         }
     
         // Step 1: Delete the specified record for the given date
-        $deleteQuery = "DELETE FROM daily_report WHERE Date = '$Date'";
+        $deleteQuery = "DELETE FROM daily_report WHERE Date = '$Date' AND BranchName='$BranchName'";
         if ($conn->query($deleteQuery) === TRUE) {
             echo json_encode(['message' => "Record with Date $Date deleted successfully"]);
         } else {
@@ -136,7 +136,7 @@ function handleDelete($conn) {
         }
     
         // Step 2: Retrieve and recalculate remaining records for the given date
-        $fetchQuery = "SELECT * FROM daily_report ORDER BY Date ASC";
+        $fetchQuery = "SELECT * FROM daily_report WHERE BranchName='$BranchName' ORDER BY BranchName ASC,  Date ASC";
         $result = $conn->query($fetchQuery);
     
         if ($result) {
@@ -156,6 +156,7 @@ function handleDelete($conn) {
                 $cashTaken = (int)$record['CashTaken'];
     
                 $record['ActualCollection'] = ($cashAmount + $gPay + $pettyCash) - $previousPettyCash;
+                
                 $cumulativeCashTaken += $record['CashTaken'];
                 $record['TotalCashinTaken'] = $cumulativeCashTaken;
     
@@ -165,7 +166,7 @@ function handleDelete($conn) {
                 $updateQuery = "UPDATE daily_report SET 
                                 ActualCollection = '{$record['ActualCollection']}', 
                                 TotalCashinTaken = '{$record['TotalCashinTaken']}' 
-                                WHERE Date = '{$record['Date']}'";
+                                WHERE Date = '{$record['Date']}' AND BranchName = '{$record['BranchName']}'";
     
                 if (!$conn->query($updateQuery)) {
                     echo json_encode(['error' => "Error updating record for Date {$record['Date']}: " . $conn->error]);
@@ -196,9 +197,9 @@ function handleDelete($conn) {
             $ActualCollection = $conn->real_escape_string($record['ActualCollection']);
             $CashTaken = $conn->real_escape_string($record['CashTaken']);
             $TotalCashinTaken = $conn->real_escape_string($record['TotalCashinTaken']);
-    
+            $BranchName = $conn->real_escape_string($record['BranchName']);
         // First, fetch the previous record to calculate the new values
-        $checkRecord = "SELECT * FROM daily_report WHERE  Date = '$Date'";
+        $checkRecord = "SELECT * FROM daily_report WHERE  Date = '$Date' AND BranchName='$BranchName'";
         $result = $conn->query($checkRecord);
     
         if ($result) {
@@ -214,7 +215,7 @@ function handleDelete($conn) {
                 Total = '$Total' , PettyCash = '$PettyCash' ,
                 CashTaken = '$CashTaken' , TotalCashinTaken = '$TotalCashinTaken' ,
                 ActualCollection = '$ActualCollection'
-                WHERE  Date = '$Date' ";
+                WHERE  Date = '$Date' AND BranchName='$BranchName'";
 
 
                 if ($conn->query($update_sql) === TRUE) {
